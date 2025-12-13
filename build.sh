@@ -185,6 +185,9 @@ export CLEAN
 export IMG_NAME
 export APT_PROXY
 
+# Target architecture: arm64 for Pi 3/4/5, armhf for Pi 2
+export TARGET_ARCH="${TARGET_ARCH:-arm64}"
+
 export STAGE
 export STAGE_DIR
 export STAGE_WORK_DIR

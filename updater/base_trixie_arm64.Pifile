@@ -1,0 +1,37 @@
+# Base image for Debian Trixie arm64 (Pi 4/5 optimized)
+FROM https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-10-28/2024-10-22-raspios-bookworm-arm64-lite.img.xz
+PUMP 1500M
+
+# Update OS and sources to Trixie
+RUN bash -c "
+# Update sources to Trixie
+cat > /etc/apt/sources.list << EOF
+deb http://deb.debian.org/debian/ trixie main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian/ trixie main contrib non-free non-free-firmware
+EOF
+
+# Add Raspberry Pi repository
+cat > /etc/apt/sources.list.d/raspi.list << EOF
+deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.gpg] http://archive.raspberrypi.com/debian/ trixie main
+EOF
+
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get -y dist-upgrade
+apt-get autoremove -y
+"
+
+# Enable DRM VC4 V3D driver for Pi 4/5
+RUN bash -c "
+mount /dev/mapper/loop0p1 /boot/firmware || mount /dev/mapper/loop0p1 /boot
+BOOT_CONFIG='/boot/firmware/config.txt'
+if [ ! -f \"\$BOOT_CONFIG\" ]; then
+    BOOT_CONFIG='/boot/config.txt'
+fi
+
+# Ensure KMS driver is enabled
+if ! grep -q 'dtoverlay=vc4-kms-v3d' \"\$BOOT_CONFIG\"; then
+    echo 'dtoverlay=vc4-kms-v3d' >> \"\$BOOT_CONFIG\"
+fi
+"
+
+INCLUDE updater/update.Pifile

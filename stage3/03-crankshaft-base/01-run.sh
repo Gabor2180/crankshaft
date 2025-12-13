@@ -1,16 +1,23 @@
 #!/bin/bash -e
 
+# Handle both modern (/boot/firmware) and legacy (/boot) boot locations
+if [ -d "${ROOTFS_DIR}/boot/firmware" ]; then
+	BOOT_DIR="${ROOTFS_DIR}/boot/firmware"
+else
+	BOOT_DIR="${ROOTFS_DIR}/boot"
+fi
+
 # /boot
-install -m 644 files/boot/config.txt                                    "${ROOTFS_DIR}/boot/"
-install -d "${ROOTFS_DIR}/boot/crankshaft"
-install -m 644 files/boot/crankshaft/gpio2kbd.cfg                       "${ROOTFS_DIR}/boot/crankshaft/"
-install -m 644 files/boot/crankshaft/openauto.ini                       "${ROOTFS_DIR}/boot/crankshaft/"
-install -m 644 files/boot/crankshaft/openauto-logs.ini                  "${ROOTFS_DIR}/boot/crankshaft/"
-install -m 644 files/boot/crankshaft/startup.py                         "${ROOTFS_DIR}/boot/crankshaft/"
-install -m 644 files/boot/crankshaft/startup.sh                         "${ROOTFS_DIR}/boot/crankshaft/"
-install -m 644 files/boot/crankshaft/triggerhappy.conf                  "${ROOTFS_DIR}/boot/crankshaft/"
-install -m 755 files/opt/crankshaft/crankshaft_default_env.sh           "${ROOTFS_DIR}/boot/crankshaft/crankshaft_env.sh"
-install -d "${ROOTFS_DIR}/boot/crankshaft/custom"
+install -m 644 files/boot/config.txt                                    "${BOOT_DIR}/"
+install -d "${BOOT_DIR}/crankshaft"
+install -m 644 files/boot/crankshaft/gpio2kbd.cfg                       "${BOOT_DIR}/crankshaft/"
+install -m 644 files/boot/crankshaft/openauto.ini                       "${BOOT_DIR}/crankshaft/"
+install -m 644 files/boot/crankshaft/openauto-logs.ini                  "${BOOT_DIR}/crankshaft/"
+install -m 644 files/boot/crankshaft/startup.py                         "${BOOT_DIR}/crankshaft/"
+install -m 644 files/boot/crankshaft/startup.sh                         "${BOOT_DIR}/crankshaft/"
+install -m 644 files/boot/crankshaft/triggerhappy.conf                  "${BOOT_DIR}/crankshaft/"
+install -m 755 files/opt/crankshaft/crankshaft_default_env.sh           "${BOOT_DIR}/crankshaft/crankshaft_env.sh"
+install -d "${BOOT_DIR}/crankshaft/custom"
 
 # /etc
 install -d "${ROOTFS_DIR}/etc/systemd/system/systemd-udevd.service.d"
@@ -158,7 +165,15 @@ install -m 644 files/usr/share/plymouth/themes/csnganimation/lock.png           
 install -m 644 files/usr/share/plymouth/themes/csnganimation/logo.png                 "${ROOTFS_DIR}/usr/share/plymouth/themes/csnganimation/"
 install -m 644 files/usr/share/plymouth/themes/csnganimation/progress_bar.png         "${ROOTFS_DIR}/usr/share/plymouth/themes/csnganimation/"
 install -m 644 files/usr/share/plymouth/themes/csnganimation/progress_box.png         "${ROOTFS_DIR}/usr/share/plymouth/themes/csnganimation/"
-install -m 644 files/usr/lib/arm-linux-gnueabihf/plymouth/csnganimation.so            "${ROOTFS_DIR}/usr/lib/arm-linux-gnueabihf/plymouth/"
+# Handle both arm64 and armhf library paths for plymouth
+if [ -f files/usr/lib/arm-linux-gnueabihf/plymouth/csnganimation.so ]; then
+    install -d "${ROOTFS_DIR}/usr/lib/arm-linux-gnueabihf/plymouth/"
+    install -m 644 files/usr/lib/arm-linux-gnueabihf/plymouth/csnganimation.so "${ROOTFS_DIR}/usr/lib/arm-linux-gnueabihf/plymouth/"
+fi
+if [ -f files/usr/lib/aarch64-linux-gnu/plymouth/csnganimation.so ]; then
+    install -d "${ROOTFS_DIR}/usr/lib/aarch64-linux-gnu/plymouth/"
+    install -m 644 files/usr/lib/aarch64-linux-gnu/plymouth/csnganimation.so "${ROOTFS_DIR}/usr/lib/aarch64-linux-gnu/plymouth/"
+fi
 install -d "${ROOTFS_DIR}/usr/share/plymouth/themes/custom"
 install -m 644 files/usr/share/plymouth/themes/custom/custom.plymouth       "${ROOTFS_DIR}/usr/share/plymouth/themes/custom/"
 install -m 644 files/usr/share/plymouth/themes/custom/custom.script         "${ROOTFS_DIR}/usr/share/plymouth/themes/custom/"
@@ -168,13 +183,20 @@ install -m 644 files/usr/share/plymouth/themes/custom/splash.png            "${R
 install -m 644 files/usr/share/plymouth/themes/custom/shutdown.png          "${ROOTFS_DIR}/opt/crankshaft/wallpaper/"
 
 # /lib
-install -m 755 files/lib/udev/hwclock-set                               "${ROOTFS_DIR}/lib/udev/"
+if [ -f files/lib/udev/hwclock-set ]; then
+    install -m 755 files/lib/udev/hwclock-set                               "${ROOTFS_DIR}/lib/udev/"
+fi
 
 # custom resolv.conf hook
-install -m 644 files/lib/dhcpcd/dhcpcd-hooks/20-resolv.conf             "${ROOTFS_DIR}/lib/dhcpcd/dhcpcd-hooks/"
+if [ -f files/lib/dhcpcd/dhcpcd-hooks/20-resolv.conf ]; then
+    install -d "${ROOTFS_DIR}/lib/dhcpcd/dhcpcd-hooks/"
+    install -m 644 files/lib/dhcpcd/dhcpcd-hooks/20-resolv.conf             "${ROOTFS_DIR}/lib/dhcpcd/dhcpcd-hooks/"
+fi
 
-# custom dhcpcd service withh added pre wifisetup
-install -m 644 files/lib/systemd/system/dhcpcd.service                  "${ROOTFS_DIR}/lib/systemd/system/"
+# custom dhcpcd service with added pre wifisetup
+if [ -f files/lib/systemd/system/dhcpcd.service ]; then
+    install -m 644 files/lib/systemd/system/dhcpcd.service                  "${ROOTFS_DIR}/lib/systemd/system/"
+fi
 
 #qt5
 tar -xf files/qt5/Qt5_OpenGLES2.tar.xz -C ${ROOTFS_DIR}/

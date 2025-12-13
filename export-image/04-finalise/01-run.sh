@@ -18,6 +18,7 @@ fi
 
 rm -f "${ROOTFS_DIR}/etc/apt/apt.conf.d/51cache"
 rm -f "${ROOTFS_DIR}/usr/bin/qemu-arm-static"
+rm -f "${ROOTFS_DIR}/usr/bin/qemu-aarch64-static"
 
 if [ "${USE_QEMU}" != "1" ]; then
 	if [ -e "${ROOTFS_DIR}/etc/ld.so.preload.disabled" ]; then
@@ -54,7 +55,13 @@ rm -f "${ROOTFS_DIR}/root/.vnc/private.key"
 rm -f "${ROOTFS_DIR}/etc/vnc/updateid"
 
 update_issue "$(basename "${EXPORT_DIR}")"
-install -m 644 "${ROOTFS_DIR}/etc/rpi-issue" "${ROOTFS_DIR}/boot/issue.txt"
+
+# Handle both modern (/boot/firmware) and legacy (/boot) boot locations
+if [ -d "${ROOTFS_DIR}/boot/firmware" ]; then
+	install -m 644 "${ROOTFS_DIR}/etc/rpi-issue" "${ROOTFS_DIR}/boot/firmware/issue.txt"
+else
+	install -m 644 "${ROOTFS_DIR}/etc/rpi-issue" "${ROOTFS_DIR}/boot/issue.txt"
+fi
 
 cp "$ROOTFS_DIR/etc/rpi-issue" "$INFO_FILE"
 
