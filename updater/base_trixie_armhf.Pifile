@@ -1,4 +1,4 @@
-# Base image for Debian Trixie armhf (Pi 2/Zero 2 W/3/4 - 32-bit)
+# Base image for Debian Trixie armhf (32-bit for Pi Zero/Zero W/Pi 2 and 32-bit compatibility mode)
 FROM https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2024-10-28/2024-10-22-raspios-bookworm-armhf-lite.img.xz
 PUMP 1500M
 
