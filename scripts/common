@@ -14,8 +14,9 @@ bootstrap(){
 		BOOTSTRAP_CMD=qemu-debootstrap
 	fi
 
-	# Use arm64 for modern Pi support (Pi 3, Pi 4, Pi 5)
-	TARGET_ARCH="${TARGET_ARCH:-arm64}"
+	# TARGET_ARCH should be set by build.sh, default to arm64 for modern Pi support (Pi 3, Pi 4, Pi 5)
+	# This is only a fallback if TARGET_ARCH is not exported
+	: "${TARGET_ARCH:=arm64}"
 	BOOTSTRAP_ARGS+=(--arch "${TARGET_ARCH}")
 	BOOTSTRAP_ARGS+=(--components "main,contrib,non-free,non-free-firmware")
 	BOOTSTRAP_ARGS+=(--include=ca-certificates)
@@ -97,7 +98,8 @@ on_chroot() {
 		mount --bind /sys "${ROOTFS_DIR}/sys"
 	fi
 
-	TARGET_ARCH="${TARGET_ARCH:-arm64}"
+	# TARGET_ARCH should be set by build.sh, default to arm64
+	: "${TARGET_ARCH:=arm64}"
 	if [ "${TARGET_ARCH}" = "arm64" ]; then
 		capsh --drop=cap_setfcap "--chroot=${ROOTFS_DIR}/" -- -e "$@"
 	else

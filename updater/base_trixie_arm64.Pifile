@@ -20,13 +20,12 @@ DEBIAN_FRONTEND=noninteractive apt-get -y dist-upgrade
 apt-get autoremove -y
 "
 
-# Enable DRM VC4 V3D driver for Pi 4/5
+# Helper function to mount boot partition and get config path
 RUN bash -c "
-mount /dev/mapper/loop0p1 /boot/firmware || mount /dev/mapper/loop0p1 /boot
+# Mount boot partition (handles both modern and legacy layouts)
+mount /dev/mapper/loop0p1 /boot/firmware 2>/dev/null || mount /dev/mapper/loop0p1 /boot
 BOOT_CONFIG='/boot/firmware/config.txt'
-if [ ! -f \"\$BOOT_CONFIG\" ]; then
-    BOOT_CONFIG='/boot/config.txt'
-fi
+[ -f \"\$BOOT_CONFIG\" ] || BOOT_CONFIG='/boot/config.txt'
 
 # Ensure KMS driver is enabled
 if ! grep -q 'dtoverlay=vc4-kms-v3d' \"\$BOOT_CONFIG\"; then
