@@ -1,0 +1,205 @@
+name: Create Flashable Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0, v2.1.0, etc.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  # Determine version information
+  version:
+    name: Determine Version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      buildname: ${{ steps.get_version.outputs.buildname }}
+      builddate: ${{ steps.get_version.outputs.builddate }}
+      buildhash: ${{ steps.get_version.outputs.buildhash }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version information
+        id: get_version
+        run: |
+          # Get version from tag or input
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+          else
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          
+          BUILDDATE=$(date '+%Y-%m-%d')
+          BUILDHASH=$(git rev-parse --short "$GITHUB_SHA")
+          BUILDNAME="${BUILDDATE}-crankshaft-ng-${BUILDHASH}"
+          
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "builddate=${BUILDDATE}" >> $GITHUB_OUTPUT
+          echo "buildhash=${BUILDHASH}" >> $GITHUB_OUTPUT
+          echo "buildname=${BUILDNAME}" >> $GITHUB_OUTPUT
+          
+          echo "Building version: ${VERSION}"
+          echo "Build name: ${BUILDNAME}"
+
+  # Build images for each architecture
+  build:
+    name: 'Build: ${{ matrix.config.name }}'
+    needs: [version]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {
+              name: "arm64 (Pi 3/4/5)",
+              basefile: "updater/base_trixie_arm64",
+              arch: "arm64",
+              suffix: ""
+            }
+          - {
+              name: "arm64-pi3 (Pi 3 optimized)",
+              basefile: "updater/base_trixie_arm64_pi3",
+              arch: "arm64-pi3",
+              suffix: "-pi3"
+            }
+          - {
+              name: "armhf (Pi Zero/2/32-bit)",
+              basefile: "updater/base_trixie_armhf",
+              arch: "armhf",
+              suffix: "-armhf"
+            }
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64,arm
+
+      - name: Build image with pimod
+        uses: Nature40/pimod@v0.7.0
+        with:
+          pifile: ${{ matrix.config.basefile }}.Pifile
+
+      - name: Generate artifact names and package
+        id: artifact_name
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          SUFFIX="${{ matrix.config.suffix }}"
+          
+          IMG_NAME="crankshaft-ng-${VERSION}${SUFFIX}"
+          
+          # Rename the built image
+          mv ${{ matrix.config.basefile }}.img "${IMG_NAME}.img"
+          
+          # Generate checksums
+          md5sum "${IMG_NAME}.img" > "${IMG_NAME}.img.md5"
+          sha1sum "${IMG_NAME}.img" > "${IMG_NAME}.img.sha1"
+          sha256sum "${IMG_NAME}.img" > "${IMG_NAME}.img.sha256"
+          
+          # Create zip archive
+          zip "${IMG_NAME}.zip" "${IMG_NAME}.img" "${IMG_NAME}.img.md5" "${IMG_NAME}.img.sha1" "${IMG_NAME}.img.sha256"
+          
+          echo "Created: ${IMG_NAME}.zip"
+          ls -lh "${IMG_NAME}"*
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crankshaft-ng-${{ needs.version.outputs.version }}-${{ matrix.config.arch }}
+          path: |
+            crankshaft-ng-${{ needs.version.outputs.version }}${{ matrix.config.suffix }}.zip
+            crankshaft-ng-${{ needs.version.outputs.version }}${{ matrix.config.suffix }}.img.md5
+            crankshaft-ng-${{ needs.version.outputs.version }}${{ matrix.config.suffix }}.img.sha1
+            crankshaft-ng-${{ needs.version.outputs.version }}${{ matrix.config.suffix }}.img.sha256
+          retention-days: 7
+
+  # Create GitHub release and upload all artifacts
+  release:
+    name: Create Release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten artifacts directory
+        run: |
+          mkdir -p release-files
+          # Move all files from subdirectories to a flat directory
+          find artifacts -type f \( -name "*.zip" -o -name "*.md5" -o -name "*.sha1" -o -name "*.sha256" \) -exec mv {} release-files/ \;
+          echo "Release files:"
+          ls -lh release-files/
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION="${{ needs.version.outputs.version }}"
+          BUILDDATE="${{ needs.version.outputs.builddate }}"
+          
+          cat > release_notes.md << EOF
+          ## Crankshaft NG ${VERSION}
+          
+          **Build Date:** ${BUILDDATE}
+          
+          ### Downloads
+          
+          Choose the appropriate image for your Raspberry Pi:
+          
+          | File | Description |
+          |------|-------------|
+          | \`crankshaft-ng-${VERSION}.zip\` | **Recommended** - For Raspberry Pi 3, 4, and 5 (arm64) |
+          | \`crankshaft-ng-${VERSION}-pi3.zip\` | Optimized for Raspberry Pi 3 (arm64) |
+          | \`crankshaft-ng-${VERSION}-armhf.zip\` | For Raspberry Pi Zero, Zero W, Pi 2 (32-bit armhf) |
+          
+          ### Installation
+          
+          1. Download the appropriate zip file for your Pi model
+          2. Extract the \`.img\` file from the zip
+          3. Flash the image to your SD card using [Raspberry Pi Imager](https://www.raspberrypi.com/software/) or [balenaEtcher](https://www.balena.io/etcher/)
+          4. Insert the SD card into your Pi and boot
+          
+          ### Verification
+          
+          Each zip contains checksum files (\`.md5\`, \`.sha1\`, \`.sha256\`) to verify the image integrity.
+          
+          ### What's Changed
+          
+          See the [full changelog](https://github.com/${{ github.repository }}/compare/...${VERSION}) for details.
+          EOF
+          
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.version }}
+          name: Crankshaft NG ${{ needs.version.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(needs.version.outputs.version, '-') }}
+          files: |
+            release-files/*.zip
+            release-files/*.md5
+            release-files/*.sha1
+            release-files/*.sha256
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
