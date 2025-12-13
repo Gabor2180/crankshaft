@@ -1,0 +1,36 @@
+# Base image for Debian Trixie armhf (32-bit for Pi Zero/Zero W/Pi 2 and 32-bit compatibility mode)
+FROM https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2024-10-28/2024-10-22-raspios-bookworm-armhf-lite.img.xz
+PUMP 1500M
+
+# Update OS and sources to Trixie
+RUN bash -c "
+# Update sources to Trixie
+cat > /etc/apt/sources.list << EOF
+deb http://deb.debian.org/debian/ trixie main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian/ trixie main contrib non-free non-free-firmware
+EOF
+
+# Add Raspberry Pi repository
+cat > /etc/apt/sources.list.d/raspi.list << EOF
+deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.gpg] http://archive.raspberrypi.com/debian/ trixie main
+EOF
+
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get -y dist-upgrade
+apt-get autoremove -y
+"
+
+# Helper function to mount boot partition and get config path
+RUN bash -c "
+# Mount boot partition (handles both modern and legacy layouts)
+mount /dev/mapper/loop0p1 /boot/firmware 2>/dev/null || mount /dev/mapper/loop0p1 /boot
+BOOT_CONFIG='/boot/firmware/config.txt'
+[ -f \"\$BOOT_CONFIG\" ] || BOOT_CONFIG='/boot/config.txt'
+
+# Ensure KMS driver is enabled
+if ! grep -q 'dtoverlay=vc4-kms-v3d' \"\$BOOT_CONFIG\"; then
+    echo 'dtoverlay=vc4-kms-v3d' >> \"\$BOOT_CONFIG\"
+fi
+"
+
+INCLUDE updater/update.Pifile
