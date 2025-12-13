@@ -65,6 +65,13 @@ jobs:
               osname: "trixie",
               ostype: "Debian"
             }
+          - {
+              name: "Debian Trixie armhf",
+              basefile: "updater/base_trixie_armhf",
+              arch: "armhf",
+              osname: "trixie",
+              ostype: "Debian"
+            }
     name: 'Build:  ${{ matrix.config.name }}'
     steps:
       - 
