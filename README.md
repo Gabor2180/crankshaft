@@ -46,6 +46,24 @@ The build system uses:
 - PulseAudio for audio management
 - BlueZ 5 for Bluetooth support
 
+## Building arm64 Prebuilts (Qt5 & OpenAuto)
+
+The Qt5 and OpenAuto binaries need to be compiled for arm64. A build script is provided:
+
+```bash
+# On a Raspberry Pi 4/5 running arm64 Debian Trixie:
+./build-arm64-prebuilts.sh all
+
+# Or build individual components:
+./build-arm64-prebuilts.sh deps      # Install dependencies
+./build-arm64-prebuilts.sh qt        # Build Qt 5.15
+./build-arm64-prebuilts.sh aasdk     # Build Android Auto SDK
+./build-arm64-prebuilts.sh openauto  # Build OpenAuto
+./build-arm64-prebuilts.sh package   # Package prebuilts
+```
+
+**Note:** Building Qt5 from source takes several hours on a Raspberry Pi. Consider using a Pi 5 with adequate cooling for faster builds.
+
 ## Changes from Buster
 
 - Migrated from armhf to arm64 architecture
