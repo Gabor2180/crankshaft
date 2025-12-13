@@ -26,6 +26,7 @@ https://getcrankshaft.com/
 - [Troubleshooting](#troubleshooting)
 - [Advanced Topics](#advanced-topics)
 - [Building from Source](#building-from-source)
+  - [Creating Flashable Releases](#creating-flashable-releases)
 
 ---
 
@@ -424,6 +425,43 @@ The Qt5 and OpenAuto binaries need to be compiled for arm64:
 ```
 
 **Note:** Building Qt5 from source takes several hours on a Raspberry Pi. Consider using a Pi 5 with adequate cooling.
+
+### Creating Flashable Releases
+
+Releases are automatically created when you push a version tag. To create a new release:
+
+#### Automated Release (Recommended)
+
+```bash
+# Create and push a version tag
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+This triggers the GitHub Actions release workflow which:
+1. Builds flashable images for all supported architectures (arm64, arm64-pi3, armhf)
+2. Generates checksums (MD5, SHA1, SHA256) for each image
+3. Creates zip archives containing the image and checksums
+4. Publishes a GitHub release with all artifacts
+
+#### Manual Release via GitHub Actions
+
+1. Go to **Actions** tab in the repository
+2. Select **"Create Flashable Release"** workflow
+3. Click **"Run workflow"**
+4. Enter the version (e.g., `v1.0.0`)
+5. Click **"Run workflow"** to start the build
+
+#### Release Artifacts
+
+Each release includes:
+- `crankshaft-ng-vX.X.X.zip` - For Raspberry Pi 3, 4, 5 (arm64)
+- `crankshaft-ng-vX.X.X-pi3.zip` - Pi 3 optimized (arm64)
+- `crankshaft-ng-vX.X.X-armhf.zip` - For Pi Zero, Pi 2 (32-bit)
+
+Each zip contains:
+- The `.img` file ready to flash
+- `.md5`, `.sha1`, `.sha256` checksum files
 
 ---
 
