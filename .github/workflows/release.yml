@@ -74,10 +74,6 @@ jobs:
               arch: "armhf",
               suffix: "-armhf"
             }
-    outputs:
-      artifact_arm64: ${{ steps.artifact_name.outputs.artifact_arm64 }}
-      artifact_arm64_pi3: ${{ steps.artifact_name.outputs.artifact_arm64_pi3 }}
-      artifact_armhf: ${{ steps.artifact_name.outputs.artifact_armhf }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -92,11 +88,10 @@ jobs:
         with:
           pifile: ${{ matrix.config.basefile }}.Pifile
 
-      - name: Generate artifact names
+      - name: Generate artifact names and package
         id: artifact_name
         run: |
           VERSION="${{ needs.version.outputs.version }}"
-          ARCH="${{ matrix.config.arch }}"
           SUFFIX="${{ matrix.config.suffix }}"
           
           IMG_NAME="crankshaft-ng-${VERSION}${SUFFIX}"
@@ -111,9 +106,6 @@ jobs:
           
           # Create zip archive
           zip "${IMG_NAME}.zip" "${IMG_NAME}.img" "${IMG_NAME}.img.md5" "${IMG_NAME}.img.sha1" "${IMG_NAME}.img.sha256"
-          
-          # Output artifact names for this arch
-          echo "artifact_${ARCH//-/_}=${IMG_NAME}" >> $GITHUB_OUTPUT
           
           echo "Created: ${IMG_NAME}.zip"
           ls -lh "${IMG_NAME}"*
@@ -144,12 +136,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          merge-multiple: true
 
-      - name: List downloaded artifacts
+      - name: Flatten artifacts directory
         run: |
-          echo "Downloaded artifacts:"
-          find artifacts -type f | head -50
+          mkdir -p release-files
+          # Move all files from subdirectories to a flat directory
+          find artifacts -type f \( -name "*.zip" -o -name "*.md5" -o -name "*.sha1" -o -name "*.sha256" \) -exec mv {} release-files/ \;
+          echo "Release files:"
+          ls -lh release-files/
 
       - name: Generate release notes
         id: release_notes
@@ -199,9 +193,9 @@ jobs:
           draft: false
           prerelease: ${{ contains(needs.version.outputs.version, '-') }}
           files: |
-            artifacts/*.zip
-            artifacts/*.md5
-            artifacts/*.sha1
-            artifacts/*.sha256
+            release-files/*.zip
+            release-files/*.md5
+            release-files/*.sha1
+            release-files/*.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
