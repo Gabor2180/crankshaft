@@ -49,21 +49,20 @@ jobs:
       matrix:
         host: [
           "ubuntu-latest",
-          #"macos-10.15",
         ]
         config:
           - {
-              name: "Debian Buster armhf",
-              basefile: "updater/base_buster_armhf",
-              arch: "armhf",
-              osname: "buster",
+              name: "Debian Trixie arm64",
+              basefile: "updater/base_trixie_arm64",
+              arch: "arm64",
+              osname: "trixie",
               ostype: "Debian"
             }
           - {
-              name: "Debian Buster arm7",
-              basefile: "updater/base_buster_arm7",
-              arch: "arm7-pi2",
-              osname: "buster",
+              name: "Debian Trixie arm64 Pi3",
+              basefile: "updater/base_trixie_arm64_pi3",
+              arch: "arm64-pi3",
+              osname: "trixie",
               ostype: "Debian"
             }
     name: 'Build:  ${{ matrix.config.name }}'

@@ -10,7 +10,13 @@ else
 	rm -f "${ROOTFS_DIR}/etc/apt/apt.conf.d/51cache"
 fi
 
-on_chroot apt-key add - < files/raspberrypi.gpg.key
+# Use modern apt-key handling with signed-by in sources
+install -d "${ROOTFS_DIR}/etc/apt/keyrings"
+install -m 644 files/raspberrypi.gpg.key "${ROOTFS_DIR}/etc/apt/keyrings/raspberrypi-archive-keyring.asc"
+
+# Update raspi.list to use signed-by
+sed -i 's|^deb |deb [signed-by=/etc/apt/keyrings/raspberrypi-archive-keyring.asc] |' "${ROOTFS_DIR}/etc/apt/sources.list.d/raspi.list"
+
 on_chroot << EOF
 apt-get update
 apt-get dist-upgrade -y

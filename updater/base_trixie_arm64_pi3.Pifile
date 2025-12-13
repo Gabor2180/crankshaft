@@ -1,0 +1,46 @@
+# Base image for Debian Trixie arm64 (Pi 3 optimized)
+FROM https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-10-28/2024-10-22-raspios-bookworm-arm64-lite.img.xz
+PUMP 1500M
+
+# Update OS and sources to Trixie
+RUN bash -c "
+# Update sources to Trixie
+cat > /etc/apt/sources.list << EOF
+deb http://deb.debian.org/debian/ trixie main contrib non-free non-free-firmware
+#deb-src http://deb.debian.org/debian/ trixie main contrib non-free non-free-firmware
+EOF
+
+# Add Raspberry Pi repository
+cat > /etc/apt/sources.list.d/raspi.list << EOF
+deb [signed-by=/usr/share/keyrings/raspberrypi-archive-keyring.gpg] http://archive.raspberrypi.com/debian/ trixie main
+EOF
+
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get -y dist-upgrade
+apt-get autoremove -y
+"
+
+# Enable DRM VC4 V3D driver for Pi 3 with USB optimizations
+RUN bash -c "
+# Mount boot partition (handles both modern and legacy layouts)
+mount /dev/mapper/loop0p1 /boot/firmware 2>/dev/null || mount /dev/mapper/loop0p1 /boot
+BOOT_CONFIG='/boot/firmware/config.txt'
+[ -f \"\$BOOT_CONFIG\" ] || BOOT_CONFIG='/boot/config.txt'
+
+# Ensure KMS driver is enabled for Pi 3
+if ! grep -q 'dtoverlay=vc4-kms-v3d' \"\$BOOT_CONFIG\"; then
+    # Add Pi 3 specific section if not present
+    if ! grep -q '\\[pi3\\]' \"\$BOOT_CONFIG\"; then
+        echo '' >> \"\$BOOT_CONFIG\"
+        echo '[pi3]' >> \"\$BOOT_CONFIG\"
+        echo 'dtoverlay=vc4-kms-v3d' >> \"\$BOOT_CONFIG\"
+    fi
+fi
+
+# Pi 3 specific optimizations for Android Auto USB
+echo '' >> \"\$BOOT_CONFIG\"
+echo '# Pi 3 USB optimizations for Android Auto' >> \"\$BOOT_CONFIG\"
+echo 'dwc_otg.fiq_fsm_mask=0x3' >> \"\$BOOT_CONFIG\"
+"
+
+INCLUDE updater/update.Pifile

@@ -1,2 +1,3 @@
-raspberrypi-bootloader
-raspberrypi-kernel
+# Use standard Debian kernel packages for Trixie
+linux-image-arm64
+firmware-misc-nonfree

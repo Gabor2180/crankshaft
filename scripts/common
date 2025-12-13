@@ -9,17 +9,25 @@ bootstrap(){
 
 	export http_proxy=${APT_PROXY}
 
-	if [ "$(dpkg --print-architecture)" !=  "armhf" ] && [ "$(dpkg --print-architecture)" !=  "aarch64" ]; then
+	HOST_ARCH="$(dpkg --print-architecture)"
+	if [ "${HOST_ARCH}" != "armhf" ] && [ "${HOST_ARCH}" != "arm64" ] && [ "${HOST_ARCH}" != "aarch64" ]; then
 		BOOTSTRAP_CMD=qemu-debootstrap
 	fi
 
-	BOOTSTRAP_ARGS+=(--arch armhf)
-	BOOTSTRAP_ARGS+=(--components "main,contrib,non-free")
-	BOOTSTRAP_ARGS+=(--keyring "${STAGE_DIR}/files/raspberrypi.gpg")
+	# TARGET_ARCH should be set by build.sh, default to arm64 for modern Pi support (Pi 3, Pi 4, Pi 5)
+	# This is only a fallback if TARGET_ARCH is not exported
+	: "${TARGET_ARCH:=arm64}"
+	BOOTSTRAP_ARGS+=(--arch "${TARGET_ARCH}")
+	BOOTSTRAP_ARGS+=(--components "main,contrib,non-free,non-free-firmware")
+	BOOTSTRAP_ARGS+=(--include=ca-certificates)
 	BOOTSTRAP_ARGS+=("$@")
 	printf -v BOOTSTRAP_STR '%q ' "${BOOTSTRAP_ARGS[@]}"
 
-	setarch linux32 capsh --drop=cap_setfcap -- -c "'${BOOTSTRAP_CMD}' $BOOTSTRAP_STR" || true
+	if [ "${TARGET_ARCH}" = "arm64" ]; then
+		capsh --drop=cap_setfcap -- -c "'${BOOTSTRAP_CMD}' $BOOTSTRAP_STR" || true
+	else
+		setarch linux32 capsh --drop=cap_setfcap -- -c "'${BOOTSTRAP_CMD}' $BOOTSTRAP_STR" || true
+	fi
 
 	if [ -d "$2/debootstrap" ]; then
 		rmdir "$2/debootstrap"
@@ -90,7 +98,13 @@ on_chroot() {
 		mount --bind /sys "${ROOTFS_DIR}/sys"
 	fi
 
-	setarch linux32 capsh --drop=cap_setfcap "--chroot=${ROOTFS_DIR}/" -- -e "$@"
+	# TARGET_ARCH should be set by build.sh, default to arm64
+	: "${TARGET_ARCH:=arm64}"
+	if [ "${TARGET_ARCH}" = "arm64" ]; then
+		capsh --drop=cap_setfcap "--chroot=${ROOTFS_DIR}/" -- -e "$@"
+	else
+		setarch linux32 capsh --drop=cap_setfcap "--chroot=${ROOTFS_DIR}/" -- -e "$@"
+	fi
 }
 export -f on_chroot
 
