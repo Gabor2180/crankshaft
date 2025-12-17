@@ -470,7 +470,7 @@ Configure display brightness in `/boot/crankshaft/crankshaft_env.sh`:
 ```bash
 # Brightness values (0-255)
 BR_MIN=30              # Minimum brightness
-BR_MAX=255             # Maximum brightness  
+BR_MAX=255             # Maximum brightness
 BR_STEP=25             # Brightness adjustment step
 BR_DAY=255             # Day mode brightness
 BR_NIGHT=30            # Night mode brightness
