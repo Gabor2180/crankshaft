@@ -463,6 +463,60 @@ OMXLayerIndex=2        # Video layer (EGL mode)
 OutputBackendType=1    # 0=HDMI, 1=Analog
 ```
 
+#### Standby Screen Button Customization
+
+The large buttons displayed on the Crankshaft standby screen (the main UI that appears after boot while waiting for an Android device) are part of the OpenAuto application built with Qt5.
+
+**Button Input Mapping:**
+
+Button actions can be customized through the Crankshaft Settings interface:
+1. Access Settings from the standby screen
+2. Navigate to the **Input** tab
+3. Configure button mappings for actions like:
+   - Enter, Back, Home
+   - Play/Pause, Next Track, Previous Track
+   - Volume Up/Down
+   - Left, Right, Up, Down navigation
+
+**GPIO Button Configuration:**
+
+To use physical GPIO buttons with the standby screen:
+
+```bash
+# Edit /boot/crankshaft/crankshaft_env.sh
+ENABLE_GPIO=1          # Enable GPIO button support
+
+# Configure GPIO-to-keyboard mappings in:
+# /boot/crankshaft/gpio2kbd.cfg
+```
+
+The `gpio2kbd.cfg` file maps GPIO pins to keyboard actions:
+```
+# Format: KEY_NAME  GPIO_PIN
+# Example: Map GPIO 12 to Volume Down
+VOLUMEDOWN      12
+VOLUMEUP        13
+```
+
+**Button Visual Appearance:**
+
+The visual styling of standby screen buttons (colors, fonts, sizes) is embedded in the OpenAuto application. To customize button appearance:
+
+1. **For minor tweaks**: The standby screen uses the wallpaper images from `/opt/crankshaft/wallpaper/` as the background
+2. **For advanced customization**: Requires modifying the OpenAuto source code from the [opencardev/openauto](https://github.com/opencardev/openauto) repository and rebuilding the application
+
+**Triggerhappy Button Events:**
+
+Additional button actions can be configured using triggerhappy:
+```bash
+# Edit /boot/crankshaft/triggerhappy.conf
+# or /opt/crankshaft/triggerhappy.conf
+
+# Format: KEY_NAME EVENT_TYPE COMMAND
+# Example: Run a script when F1 is pressed
+KEY_F1 1 /boot/crankshaft/custom/my_script.sh
+```
+
 #### Display Brightness Settings
 
 Configure display brightness in `/boot/crankshaft/crankshaft_env.sh`:
