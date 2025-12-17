@@ -27,6 +27,7 @@ https://getcrankshaft.com/
 - [Advanced Topics](#advanced-topics)
   - [Standby Dashboard Customization](#standby-dashboard-customization)
 - [Building from Source](#building-from-source)
+  - [Recompiling OpenAuto for Customization](#recompiling-openauto-for-customization)
   - [Creating Flashable Releases](#creating-flashable-releases)
 
 ---
@@ -606,6 +607,174 @@ The Qt5 and OpenAuto binaries need to be compiled for arm64:
 ```
 
 **Note:** Building Qt5 from source takes several hours on a Raspberry Pi. Consider using a Pi 5 with adequate cooling.
+
+### Recompiling OpenAuto for Customization
+
+If you want to customize the OpenAuto UI (button appearance, fonts, colors, layout), you need to modify the source code and recompile. This guide explains how to do this directly on a running Crankshaft system.
+
+#### Prerequisites
+
+- Raspberry Pi 4 or 5 running Crankshaft
+- SSH access enabled (Dev Mode)
+- At least 4GB of free space
+- Several hours for compilation
+
+#### Step 1: Enable Dev Mode and SSH
+
+```bash
+# Edit the config file from a computer (SD card boot partition)
+# In /boot/crankshaft/crankshaft_env.sh, set:
+DEV_MODE=1
+```
+
+Or access via SSH if already enabled.
+
+#### Step 2: Unlock the Filesystem
+
+```bash
+# Crankshaft runs in read-only mode by default
+sudo crankshaft filesystem system unlock
+```
+
+#### Step 3: Install Build Dependencies
+
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+    build-essential cmake git \
+    libboost-all-dev libusb-1.0-0-dev libssl-dev \
+    libprotobuf-dev protobuf-compiler \
+    libtag1-dev libgps-dev librtaudio-dev \
+    libpulse-dev libasound2-dev \
+    libgles2-mesa-dev libdrm-dev \
+    libgbm-dev libinput-dev libudev-dev \
+    libxkbcommon-dev libfontconfig1-dev \
+    libfreetype-dev libx11-dev libx11-xcb-dev \
+    libxcb-glx0-dev libxcb-icccm4-dev libxcb-image0-dev \
+    libxcb-keysyms1-dev libxcb-randr0-dev libxcb-render-util0-dev \
+    libxcb-shape0-dev libxcb-shm0-dev libxcb-sync-dev \
+    libxcb-xfixes0-dev libxcb-xinerama0-dev libxcb-xkb-dev \
+    libxkbcommon-x11-dev libxcb-cursor-dev
+```
+
+#### Step 4: Clone and Build aasdk (Android Auto SDK)
+
+```bash
+# Create build directory
+mkdir -p ~/openauto-build && cd ~/openauto-build
+
+# Clone aasdk
+git clone -b newdev https://github.com/opencardev/aasdk.git
+
+# Build aasdk
+mkdir -p aasdk_build && cd aasdk_build
+cmake -DCMAKE_BUILD_TYPE=Release ../aasdk
+make -j$(nproc)
+cd ~/openauto-build
+```
+
+#### Step 5: Clone and Customize OpenAuto
+
+```bash
+# Clone OpenAuto source
+git clone -b crankshaft-ng https://github.com/opencardev/openauto.git
+cd openauto
+```
+
+**Customization locations in the source code:**
+
+| File/Directory | What to Customize |
+|----------------|-------------------|
+| `openauto/UI/` | Qt UI files (.ui) for layout |
+| `openauto/UI/MainWindow.cpp` | Main window logic and button behavior |
+| `openauto/UI/SettingsWindow.cpp` | Settings dialog |
+| `resources/` | Images, icons, and QSS stylesheets |
+| `openauto/Configuration/` | Default configuration values |
+
+**Example: Changing button colors (Qt stylesheet)**
+
+Look for `.qss` files or inline stylesheet definitions in the source. You can modify colors, fonts, and sizes using Qt CSS-like syntax:
+
+```cpp
+// Example in source code
+button->setStyleSheet("QPushButton { background-color: #2196F3; color: white; font-size: 18px; }");
+```
+
+#### Step 6: Build OpenAuto
+
+```bash
+cd ~/openauto-build
+
+# Set Qt5 path (already installed on Crankshaft)
+export PATH=/usr/local/qt5/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/qt5/lib:$LD_LIBRARY_PATH
+
+# Create build directory
+mkdir -p openauto_build && cd openauto_build
+
+# Configure with cmake
+cmake -DCMAKE_BUILD_TYPE=Release \
+    -DRPI3_BUILD=FALSE \
+    -DAASDK_INCLUDE_DIRS="$HOME/openauto-build/aasdk/include" \
+    -DAASDK_LIBRARIES="$HOME/openauto-build/aasdk_build/lib/libaasdk.so" \
+    -DAASDK_PROTO_INCLUDE_DIRS="$HOME/openauto-build/aasdk_build" \
+    -DAASDK_PROTO_LIBRARIES="$HOME/openauto-build/aasdk_build/lib/libaasdk_proto.so" \
+    ../openauto
+
+# Build (this takes 30-60 minutes on Pi 4/5)
+make -j$(nproc)
+```
+
+#### Step 7: Install Your Custom OpenAuto
+
+```bash
+# Backup original binaries
+sudo cp /usr/local/bin/autoapp /usr/local/bin/autoapp.backup
+sudo cp /usr/local/lib/libaasdk.so /usr/local/lib/libaasdk.so.backup
+sudo cp /usr/local/lib/libaasdk_proto.so /usr/local/lib/libaasdk_proto.so.backup
+
+# Install new binaries
+sudo cp ~/openauto-build/openauto_build/bin/autoapp /usr/local/bin/
+sudo cp ~/openauto-build/aasdk_build/lib/libaasdk.so /usr/local/lib/
+sudo cp ~/openauto-build/aasdk_build/lib/libaasdk_proto.so /usr/local/lib/
+
+# Update library cache
+sudo ldconfig
+```
+
+#### Step 8: Test and Lock Filesystem
+
+```bash
+# Reboot to test changes
+sudo reboot
+
+# If everything works, lock the filesystem again
+sudo crankshaft filesystem system lock
+```
+
+#### Reverting to Original
+
+If your custom build causes issues:
+
+```bash
+sudo crankshaft filesystem system unlock
+sudo cp /usr/local/bin/autoapp.backup /usr/local/bin/autoapp
+sudo cp /usr/local/lib/libaasdk.so.backup /usr/local/lib/libaasdk.so
+sudo cp /usr/local/lib/libaasdk_proto.so.backup /usr/local/lib/libaasdk_proto.so
+sudo ldconfig
+sudo crankshaft filesystem system lock
+sudo reboot
+```
+
+#### Tips for UI Customization
+
+1. **Qt Designer**: Use Qt Designer on a desktop Linux to edit `.ui` files visually before transferring to Pi
+2. **Colors**: Search for `setStyleSheet`, `QPalette`, or color hex codes in the source
+3. **Fonts**: Look for `QFont` usage and modify font families/sizes
+4. **Button sizes**: Modify `setFixedSize`, `setMinimumSize`, or layout constraints
+5. **Icons**: Replace PNG/SVG files in the `resources/` directory
+
+⚠️ **Important:** Keep your customizations minimal and well-documented. Complex changes may break compatibility with future Crankshaft updates.
 
 ### Creating Flashable Releases
 
