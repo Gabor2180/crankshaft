@@ -622,8 +622,9 @@ If you want to customize the OpenAuto UI (button appearance, fonts, colors, layo
 #### Step 1: Enable Dev Mode and SSH
 
 ```bash
-# Edit the config file from a computer (SD card boot partition)
-# In /boot/crankshaft/crankshaft_env.sh, set:
+# Remove the SD card from your Pi and insert it into your computer
+# Navigate to the boot partition and edit crankshaft/crankshaft_env.sh
+# Set the following value:
 DEV_MODE=1
 ```
 
@@ -768,7 +769,7 @@ sudo reboot
 
 #### Tips for UI Customization
 
-1. **Qt Designer**: Use Qt Designer on a desktop Linux to edit `.ui` files visually before transferring to Pi
+1. **Qt Designer**: Use Qt Designer to edit `.ui` files visually before transferring to Pi. Available on Linux (`sudo apt install qttools5-dev-tools`), Windows, and macOS via the [Qt Online Installer](https://www.qt.io/download-qt-installer)
 2. **Colors**: Search for `setStyleSheet`, `QPalette`, or color hex codes in the source
 3. **Fonts**: Look for `QFont` usage and modify font families/sizes
 4. **Button sizes**: Modify `setFixedSize`, `setMinimumSize`, or layout constraints
