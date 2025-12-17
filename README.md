@@ -492,7 +492,7 @@ ENABLE_GPIO=1          # Enable GPIO button support
 
 The `gpio2kbd.cfg` file maps GPIO pins to keyboard actions:
 ```
-# Format: KEY_NAME  GPIO_PIN
+# Format: KEY_NAME    GPIO_PIN  (whitespace separated)
 # Example: Map GPIO 12 to Volume Down
 VOLUMEDOWN      12
 VOLUMEUP        13
@@ -504,6 +504,8 @@ The visual styling of standby screen buttons (colors, fonts, sizes) is embedded 
 
 1. **For minor tweaks**: The standby screen uses the wallpaper images from `/opt/crankshaft/wallpaper/` as the background
 2. **For advanced customization**: Requires modifying the OpenAuto source code from the [opencardev/openauto](https://github.com/opencardev/openauto) repository and rebuilding the application
+
+⚠️ **Warning:** Modifying and rebuilding OpenAuto is an advanced operation that requires development experience. Incorrect modifications may cause system instability or boot failures. Always backup your system before attempting source-level changes.
 
 **Triggerhappy Button Events:**
 
